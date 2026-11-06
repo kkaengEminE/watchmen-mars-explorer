@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#110b16" />
+  <title>MARS — The Clockwork Palace | 3D Explorer</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+    :root{color-scheme:dark;--ink:#f9ece9;--muted:#d5c0bd;--dim:#9f8a91;--accent:#efb99f;--blue:#8deaff}
+    *{box-sizing:border-box} html,body{height:100%;width:100%;margin:0;overflow:hidden;background:#100917;color:var(--ink);font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+    canvas#world{display:block;position:fixed;inset:0;width:100%;height:100%;touch-action:none;outline:none}
+    #vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 74% 70% at 53% 42%,transparent 37%,rgba(14,6,18,.26) 75%,rgba(9,4,13,.62) 100%);z-index:1}
+    #grain{position:fixed;inset:0;pointer-events:none;z-index:2;opacity:.16;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.25'/%3E%3C/svg%3E")}
+    #hud{position:fixed;inset:0;pointer-events:none;z-index:5;transition:opacity .3s} #hud.dim{opacity:.42}
+    .hud-top{position:absolute;left:36px;top:31px;display:flex;align-items:flex-start;gap:13px}
+    .symbol{width:39px;height:39px;border:1px solid #e8b7a06b;border-radius:50%;display:grid;place-items:center;color:#edbda8;font:22px Georgia,serif;position:relative}
+    .symbol:after{content:"";position:absolute;width:27px;height:27px;border:1px solid #e8b7a063;border-radius:50%}
+    .eyebrow{font-family:'DM Mono',monospace;letter-spacing:.25em;font-size:10px;color:#f3c5ad;margin:2px 0 6px;text-transform:uppercase}
+    .brand-title{font-size:17px;letter-spacing:.12em;font-weight:800;line-height:1.1}
+    .brand-sub{font-family:'DM Mono',monospace;color:#caaeb0;font-size:9px;letter-spacing:.09em;margin-top:7px}
+    .rightdata{position:absolute;right:35px;top:34px;text-align:right;font-family:'DM Mono',monospace;font-size:10px;color:#e1c8c5;line-height:2.1;letter-spacing:.14em;text-shadow:0 1px 15px #180b20}
+    .rightdata .val{color:#fff2e5;font-size:12px} .rightdata .mode{color:#9ce7fb}
+    .reticle{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:20px;height:20px;opacity:.84}
+    .reticle:before,.reticle:after{content:"";position:absolute;background:#f2d8d0a6;box-shadow:0 0 7px #fff5}
+    .reticle:before{width:1px;height:20px;left:9px;top:0}.reticle:after{height:1px;width:20px;left:0;top:9px}
+    .bottom-left{position:absolute;left:37px;bottom:32px;font-family:'DM Mono',monospace;letter-spacing:.08em;font-size:10px;color:#e0c6c1;line-height:1.8}
+    .bottom-left strong{display:block;color:#fbece1;font-weight:500;letter-spacing:.17em;font-size:12px;margin-bottom:5px}
+    .bottom-left i{display:inline-block;width:24px;height:1px;background:#f0b6a3;vertical-align:middle;margin-right:7px}
+    .bottom-right{position:absolute;right:35px;bottom:28px;display:flex;align-items:center;gap:12px;text-align:right}
+    .bottom-right span{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.08em;color:#efc7bb;line-height:1.75}
+    .key{display:inline-flex;justify-content:center;align-items:center;min-width:25px;height:25px;padding:0 7px;border:1px solid rgba(255,236,222,.34);border-bottom-color:rgba(255,236,222,.55);border-radius:5px;background:rgba(255,239,230,.08);color:#fff0e4;font-family:'DM Mono',monospace;font-size:11px;margin-right:4px}
+    .compass{position:absolute;top:42px;left:50%;transform:translateX(-50%);width:180px;display:flex;gap:7px;align-items:center;justify-content:center;color:#f6dbd1;font:11px 'DM Mono',monospace;letter-spacing:.18em}
+    .compass .line{height:1px;flex:1;background:linear-gradient(90deg,transparent,#edbfaa55)} .compass .line:last-child{transform:rotate(180deg)}
+    .hint{position:absolute;left:50%;bottom:110px;transform:translateX(-50%);color:#b7efff;background:#15152699;border:1px solid #77dfff61;border-radius:7px;padding:9px 13px;white-space:nowrap;letter-spacing:.08em;font:11px 'DM Mono',monospace;display:none;backdrop-filter:blur(12px)}
+    .hint.visible{display:block} #toast{position:absolute;left:50%;top:17%;transform:translateX(-50%);font:11px 'DM Mono',monospace;letter-spacing:.16em;white-space:nowrap;padding:11px 18px;border:1px solid #ffe3c25b;border-radius:25px;background:#21131bb8;color:#fff2df;opacity:0;transition:opacity .25s}
+    #toast.show{opacity:1}
+    #controlNotice{position:fixed;z-index:7;left:50%;bottom:154px;transform:translateX(-50%);color:#ffe9dc;font:11px 'DM Mono',monospace;letter-spacing:.025em;background:#17111edc;border:1px solid #ffbda95e;border-radius:8px;padding:11px 16px;text-align:center;line-height:1.8;pointer-events:none;display:none;max-width:min(520px,90vw)}
+    #controlNotice.show{display:block}
+
+    #intro{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:flex-start;padding:clamp(24px,8vw,145px);background:linear-gradient(90deg,rgba(11,8,19,.92) 0%,rgba(14,9,23,.83) 32%,rgba(21,9,25,.25) 77%,rgba(14,8,20,.04));transition:opacity .45s,visibility .45s;backdrop-filter:blur(2px)}
+    #intro.hidden{opacity:0;visibility:hidden;pointer-events:none}
+    .intro-inner{max-width:590px;width:100%} .intro-meta{font:11px 'DM Mono',monospace;letter-spacing:.27em;color:#f0b7a2;margin-bottom:27px;display:flex;align-items:center;gap:12px}
+    .intro-meta:before{content:"";display:block;width:29px;height:1px;background:#dca78e}
+    h1{font-size:clamp(70px,8.5vw,139px);letter-spacing:-.09em;line-height:.85;margin:0 0 17px;font-weight:800;color:#fff1e8;text-shadow:0 7px 70px #eaa58b26}
+    .serif-title{font:italic clamp(27px,3.4vw,46px) Georgia,'Times New Roman',serif;color:#e9af9d;letter-spacing:-.035em;line-height:1.2;margin:0 0 25px}
+    .lead{font-size:14px;line-height:1.95;max-width:475px;color:#cfc0c3;word-break:keep-all;margin:0 0 29px}
+    .intro-divider{height:1px;width:min(420px,100%);background:linear-gradient(90deg,#d49f9459,transparent);margin-bottom:27px}
+    .controls{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;margin-bottom:31px;max-width:530px}
+    .control{display:flex;align-items:center;gap:11px;min-height:28px}.control .key{flex-shrink:0}.control-label{font-size:11px;color:#f0d8d4;white-space:nowrap}
+    .begin{cursor:pointer;border:1px solid #f4c5b8;background:#ecc0ad;color:#21131c;padding:17px 26px;min-width:260px;font:800 13px 'Manrope',sans-serif;letter-spacing:.12em;border-radius:3px;transition:transform .18s,background .18s;box-shadow:0 10px 55px #eb9f8c26}
+    .begin:hover{transform:translateY(-2px);background:#ffe2cf}.begin:active{transform:translateY(0)}
+    .disclaimer{font:9px 'DM Mono',monospace;line-height:1.7;letter-spacing:.025em;color:#b99ea4;max-width:480px;margin-top:20px}
+    .decor-orbit{position:fixed;z-index:0;right:-18vw;top:3vh;width:min(65vw,920px);height:min(65vw,920px);border:1px solid rgba(237,174,167,.06);border-radius:50%;pointer-events:none}
+    .decor-orbit:after{content:"";position:absolute;inset:12%;border:1px solid rgba(237,174,167,.06);border-radius:50%}
+    #error{position:fixed;z-index:30;inset:auto 15px 15px;display:none;background:#361b29;border:1px solid #fdb6a2;padding:18px;color:#ffe7e4;font-size:13px;line-height:1.6}
+    .focus-outline{position:absolute;inset:14px;border:1px solid rgba(244,199,183,.10);pointer-events:none;border-radius:2px}
+    @media(max-width:740px){#intro{padding:30px 24px;align-items:center;background:rgba(13,9,20,.84)}.intro-meta{margin-bottom:22px}h1{font-size:79px}.controls{grid-template-columns:1fr 1fr;gap:10px}.lead{font-size:12px;margin-bottom:22px}.control-label{font-size:10px}.begin{min-width:240px}.hud-top{top:20px;left:19px}.rightdata{top:20px;right:17px;font-size:9px}.bottom-left{left:20px;bottom:19px}.bottom-right{right:18px;bottom:18px}.bottom-right span{display:none}.compass{top:85px}}
+  </style>
+</head>
+<body>
+  <canvas id="world" tabindex="0" aria-label="화성 탐험 3D 월드"></canvas>
+  <div id="vignette"></div><div id="grain"></div><div id="controlNotice" aria-live="polite">마우스 잠금 없이도 이동할 수 있습니다. <strong>WASD 이동 · 드래그 시점 회전</strong><br>화면을 클릭하면 마우스 고정을 다시 시도합니다.</div>
+  <div id="hud">
+    <div class="hud-top"><div class="symbol">◈</div><div><div class="eyebrow">Interactive world / 001</div><div class="brand-title">THE CLOCKWORK PALACE</div><div class="brand-sub">MARS · 3D EXPLORATION</div></div></div>
+    <div class="compass"><div class="line"></div><span id="bearing">N · 000°</span><div class="line"></div></div>
+    <div class="rightdata">VIEW <span class="val" id="cameraMode">THIRD PERSON</span><br>MODE <span class="val mode" id="travelMode">WALKING</span><br>ALT <span class="val" id="altitude">000.0 M</span><br>PALACE <span class="val" id="distance">000 M</span></div>
+    <div class="reticle"></div>
+    <div class="bottom-left"><strong>NO. 01 / THE RED PLANET</strong><div><i></i> 화성의 시간을 거닐다</div><div style="color:#c69fa2;margin-top:4px" id="position">0.0, 0.0, 0.0</div></div>
+    <div class="bottom-right"><span>시점 전환<br>비행 전환</span><div><div><span class="key">V</span></div><div style="margin-top:7px"><span class="key">SPACE × 2</span></div></div></div>
+    <div id="interactionHint" class="hint">E — 닥터 맨하튼 관찰</div>
+    <div id="toast"></div>
+  </div>
+  <div id="intro">
+    <div class="decor-orbit"></div><div class="focus-outline"></div>
+    <div class="intro-inner">
+      <div class="intro-meta">AN UNMADE WORLD · 2026</div>
+      <h1>MARS.</h1>
+      <p class="serif-title">The Clockwork Palace</p>
+      <p class="lead">붉은 행성의 침묵 속, 시간이 유리와 금속으로 만들어진 장소.<br>거대한 시계 장치를 자유롭게 걸으며 탐험하고, 닥터 맨하튼이 떠 있는 하늘로 올라가 보세요.</p>
+      <div class="intro-divider"></div>
+      <div class="controls">
+        <div class="control"><span class="key">W A S D</span><span class="control-label">이동하기</span></div>
+        <div class="control"><span class="key">MOUSE</span><span class="control-label">주변 둘러보기</span></div>
+        <div class="control"><span class="key">SPACE × 2</span><span class="control-label">비행 모드 켜기/끄기</span></div>
+        <div class="control"><span class="key">V</span><span class="control-label">1인칭 / 3인칭</span></div>
+        <div class="control"><span class="key">SPACE / SHIFT</span><span class="control-label">비행 상승 / 하강</span></div>
+        <div class="control"><span class="key">SHIFT / R</span><span class="control-label">빠르게 이동 (지상) / R 부스트</span></div>
+      </div>
+      <button class="begin" id="start">탐험 시작하기 &nbsp; ↗</button>
+      <div class="disclaimer">ESC 키로 마우스를 해제할 수 있습니다. 마우스 잠금 없이도 WASD 이동과 드래그 시점 조작이 가능합니다. 데스크톱 키보드·마우스 환경 권장.<br>WATCHMEN 세계관에서 영감을 받은 비공식 팬 제작 3D 콘셉트입니다.</div>
+    </div>
+  </div>
+  <div id="error"></div>
+  <script>
+    // Import/runtime errors must not silently turn the entire view black.
+    window.__marsReady = false;
+    window.__marsError = function(message) {
+      const el = document.getElementById('error');
+      el.textContent = '3D 화면 오류: ' + message + ' · 최신 Chrome/Edge/Safari에서 다시 실행하거나 README의 로컬 서버 방식으로 열어보세요.';
+      el.style.display = 'block';
+    };
+    window.addEventListener('error', (event) => {
+      if (!window.__marsReady || !event.message?.includes('ResizeObserver')) window.__marsError(event.message || '알 수 없는 렌더링 오류');
+    });
+    window.addEventListener('unhandledrejection', (event) => window.__marsError(String(event.reason || '라이브러리 로딩 오류')));
+    setTimeout(() => { if (!window.__marsReady) window.__marsError('3D 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.'); }, 12000);
+  </script>
+  <script type="module">
+    let THREE;
+    try {
+      THREE = await import('https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js');
+    } catch (firstError) {
+      try {
+        THREE = await import('https://unpkg.com/three@0.168.0/build/three.module.js');
+      } catch (secondError) {
+        window.__marsError('Three.js 다운로드 실패 (인터넷 또는 CDN 접근 제한)');
+        throw secondError;
+      }
+    }
+
+    const canvas = document.getElementById('world');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x5c2e39,0.00089);
+    const camera = new THREE.PerspectiveCamera(73,innerWidth/innerHeight,.1,3500);
+    const renderer = new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+    renderer.setSize(innerWidth,innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.35));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.58;
+    renderer.shadowMap.enabled = false;
+
+    const clock = new THREE.Clock();
+    const mat = (color,opts={}) => new THREE.MeshStandardMaterial({color,metalness:.33,roughness:.4,...opts});
+    const glass = (color,opacity=.52)=>new THREE.MeshPhysicalMaterial({color,transparent:true,opacity,side:THREE.DoubleSide,metalness:.15,roughness:.16,depthWrite:false,emissive:color,emissiveIntensity:.09});
+    const metal=mat(0x92505c,{metalness:.82,roughness:.23,emissive:0x3b0b26,emissiveIntensity:.10});
+    const roseGlass=glass(0xf9acbc,.51), amberGlass=glass(0xe8aa83,.55), deepGlass=glass(0x9d506b,.63);
+    const gold=mat(0xd8a28d,{metalness:.87,roughness:.2,emissive:0x693642,emissiveIntensity:.13});
+    let seed=186743;function random(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
+    function mesh(parent,geo,material,x=0,y=0,z=0){const m=new THREE.Mesh(geo,material);m.position.set(x,y,z);parent.add(m);return m}
+    function torus(parent,r,t,material,x=0,y=0,z=0){return mesh(parent,new THREE.TorusGeometry(r,t,9,112),material,x,y,z)}
+    function sphere(parent,r,material,x=0,y=0,z=0){return mesh(parent,new THREE.SphereGeometry(r,16,12),material,x,y,z)}
+    function cylinderBetween(parent,a,b,r1,r2,material,sides=9){const v1=new THREE.Vector3(...a),v2=new THREE.Vector3(...b),delta=v2.clone().sub(v1);const c=mesh(parent,new THREE.CylinderGeometry(r1,r2,delta.length(),sides),material,...v1.clone().add(v2).multiplyScalar(.5).toArray());c.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());return c}
+
+    // Atmospheric gradient dome: gradients, stars and a huge distant sun.
+    const sky=mesh(scene,new THREE.SphereGeometry(1800,40,24),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,uniforms:{},vertexShader:`varying vec3 vDirection; void main(){vDirection=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,fragmentShader:`varying vec3 vDirection;void main(){float h=clamp(vDirection.y,-0.25,1.0);vec3 deep=vec3(.025,.016,.082);vec3 mid=vec3(.17,.055,.15);vec3 edge=vec3(.56,.18,.20);vec3 col=mix(edge,mid,smoothstep(-.19,.27,h));col=mix(col,deep,smoothstep(.18,.82,h));float glow=pow(max(0.,1.0-length(vec2(vDirection.x-.26,vDirection.y-.08))*1.2),4.);col+=vec3(.25,.105,.068)*glow;gl_FragColor=vec4(col,1.);}`}));
+    sky.renderOrder=-20;
+    const starsGeo=new THREE.BufferGeometry(),stars=[];
+    for(let i=0;i<1550;i++){let theta=random()*Math.PI*2,phi=Math.acos(2*random()-1);let rad=1050+random()*500;let x=Math.cos(theta)*Math.sin(phi)*rad,y=Math.cos(phi)*rad,z=Math.sin(theta)*Math.sin(phi)*rad;if(y>-40)stars.push(x,y,z)}
+    starsGeo.setAttribute('position',new THREE.Float32BufferAttribute(stars,3));
+    const starsObj=new THREE.Points(starsGeo,new THREE.PointsMaterial({color:0xffe4e2,size:2.1,sizeAttenuation:false,depthWrite:false,transparent:true,opacity:.72,fog:false}));scene.add(starsObj);
+    sphere(scene,53,new THREE.MeshBasicMaterial({color:0xffb47f,fog:false}),340,98,-900);
+    sphere(scene,75,new THREE.MeshBasicMaterial({color:0xea7c66,transparent:true,opacity:.13,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}),340,98,-905);
+    scene.add(new THREE.HemisphereLight(0xd6bdd5,0x8e352b,2.3));
+    const sunLight=new THREE.DirectionalLight(0xffa585,2.75);sunLight.position.set(180,240,-270);scene.add(sunLight);
+    const fill=new THREE.DirectionalLight(0x6d7fa9,.75);fill.position.set(-200,80,220);scene.add(fill);
+
+    const craters=[[-170,140,43],[-310,-125,87],[225,-245,110],[240,165,65],[-470,330,130],[440,410,115],[95,410,38],[-55,-360,74]];
+    function terrainHeight(x,z){
+      let h=2.7*Math.sin(x*.011)*Math.cos(z*.015)+1.65*Math.sin(x*.031+z*.013)+1.2*Math.cos(z*.025-x*.012)+.44*Math.sin(x*.09)*Math.cos(z*.075)-2.0;
+      for(const [cx,cz,r] of craters){let d=Math.hypot(x-cx,z-cz)/r;h-=10.5*Math.exp(-d*d*3.3);h+=5.4*Math.exp(-(((d-1.05)/.24)**2))}
+      return h;
+    }
+    const groundGeo=new THREE.PlaneGeometry(2600,2600,240,240);groundGeo.rotateX(-Math.PI/2);
+    const pos=groundGeo.attributes.position,colors=[];const c=new THREE.Color();
+    for(let i=0;i<pos.count;i++){let x=pos.getX(i),z=pos.getZ(i),h=terrainHeight(x,z);pos.setY(i,h);let blend=Math.sin(x*.013+z*.009)*.5+.5;c.setRGB(.44+blend*.14+Math.max(-h,0)*.002,.18+blend*.075,.16+blend*.042);colors.push(c.r,c.g,c.b)}
+    groundGeo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));groundGeo.computeVertexNormals();
+    mesh(scene,groundGeo,mat(0xffffff,{vertexColors:true,roughness:1,metalness:0}));
+
+    // Distant mountainous skyline with low-poly rock silhouettes.
+    const mountainMat=mat(0x6e3442,{roughness:1,metalness:0,flatShading:true});
+    for(let layer=0;layer<2;layer++){
+      const mountainVerts=[],indices=[],steps=108,r=750+layer*290;
+      for(let i=0;i<=steps;i++){
+        const t=i/steps*Math.PI*2,dist=r+Math.sin(t*9+layer*4)*55+Math.sin(t*23)*28;
+        let height=60+80*Math.abs(Math.sin(t*13+layer*.8)*Math.cos(t*6))+44*random();
+        if(layer===1)height+=36;
+        const x=Math.sin(t)*dist,z=Math.cos(t)*dist;
+        mountainVerts.push(x,-32,z,x,height,z);
+        if(i<steps){let base=i*2;indices.push(base,base+1,base+3,base,base+3,base+2)}
+      }
+      const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(mountainVerts,3));g.setIndex(indices);g.computeVertexNormals();
+      mesh(scene,g,mountainMat);
+    }
+
+    const rockGeometry=new THREE.IcosahedronGeometry(1,0);
+    const rockMaterial=mat(0x93534d,{roughness:.98,metalness:0,flatShading:true});
+    const rocks=new THREE.InstancedMesh(rockGeometry,rockMaterial,1850),dummy=new THREE.Object3D();
+    for(let i=0;i<rocks.count;i++){
+      let x=(random()-.5)*1600,z=(random()-.5)*1600;
+      if(Math.abs(x)<17&&z>-148&&z<100) x+=(x<0?-22:22);
+      let sc=.22+Math.pow(random(),2.7)*3.9;
+      dummy.position.set(x,terrainHeight(x,z)+sc*.15,z);dummy.rotation.set(random()*2,random()*6.28,random()*.4);
+      dummy.scale.set(sc*(.65+random()),sc*(.35+random()*1.1),sc*(.60+random()));dummy.updateMatrix();rocks.setMatrixAt(i,dummy.matrix);
+      const n=.6+random()*.4;rocks.setColorAt(i,new THREE.Color().setRGB(n,n*.7,n*.64));
+    }
+    rocks.instanceMatrix.needsUpdate=true;scene.add(rocks);
+
+    // Palace is built from dynamic rings, mechanical scales and crystalline towers.
+    const palace=new THREE.Group();palace.position.set(0,0,-155);scene.add(palace);
+    const rotating=[];
+    const base=mesh(palace,new THREE.CylinderGeometry(64,74,2.5,96),metal,0,9,0);
+    base.scale.z=.72;
+    const baseGlass=mesh(palace,new THREE.CylinderGeometry(59,63,1.1,96),roseGlass,0,11.0,0);baseGlass.scale.z=.73;
+    for(let r of [44,53,64]){const ring=torus(palace,r,.5,gold,0,12,0);ring.rotation.x=Math.PI/2;ring.scale.y=.71}
+    for(let y of [20,31,45]){const slab=mesh(palace,new THREE.CylinderGeometry(18+(y===20?25:0),22+(y===20?28:0),.6,96),y===31?amberGlass:roseGlass,0,y,-4);slab.scale.z=.77}
+    // Clockwork ring assembly, each gimbal spinning in a different spatial axis.
+    function makeGimbal(radius,tipCount,theme,gearTeeth=0){
+      const root=new THREE.Group(),spin=new THREE.Group();root.add(spin);
+      torus(spin,radius,1.0,metal);
+      torus(spin,radius-2.05,.55,theme);
+      torus(spin,radius+1.2,.26,gold);
+      mesh(spin,new THREE.RingGeometry(radius-3.6,radius-1.7,128),glass(0xffbccb,.22));
+      for(let i=0;i<tipCount;i++){
+        const a=i*Math.PI*2/tipCount;
+        const blade=mesh(spin,new THREE.ConeGeometry(i%4===0?2.9:1.6,i%4===0?12:6.5,4),i%2?amberGlass:roseGlass,Math.sin(a)*(radius+3.3),Math.cos(a)*(radius+3.3),0);
+        blade.rotation.z=-a;blade.rotation.y=Math.PI/4;
+        if(i%3===0){const spoke=cylinderBetween(spin,[0,0,0],[Math.sin(a)*(radius-3),Math.cos(a)*(radius-3),0],.20,.20,gold,5);spoke.material=gold;}
+      }
+      if(gearTeeth){for(let i=0;i<gearTeeth;i++){const a=i*Math.PI*2/gearTeeth;const tooth=mesh(spin,new THREE.BoxGeometry(2.2,6.2,2),gold,Math.sin(a)*(radius-.2),Math.cos(a)*(radius-.2),0);tooth.rotation.z=-a}}
+      torus(spin,radius*.22,.24,theme);
+      sphere(spin,2.5,gold,0,0,0);
+      return {root,spin};
+    }
+    const r1=makeGimbal(54,42,roseGlass);r1.root.position.set(0,67,0);r1.root.rotation.set(.12,.15,-.18);palace.add(r1.root);rotating.push({part:r1.spin,speed:.007,axis:'z'});
+    const r2=makeGimbal(45,34,amberGlass);r2.root.position.set(1,67,5);r2.root.rotation.set(.15,.97,.26);palace.add(r2.root);rotating.push({part:r2.spin,speed:-.011,axis:'z'});
+    const r3=makeGimbal(36,36,deepGlass,24);r3.root.position.set(-1,67,1);r3.root.rotation.set(1.08,-.25,.05);palace.add(r3.root);rotating.push({part:r3.spin,speed:.015,axis:'z'});
+    const r4=makeGimbal(27,24,roseGlass,16);r4.root.position.set(0,67,7);r4.root.rotation.set(.2,.25,.15);palace.add(r4.root);rotating.push({part:r4.spin,speed:-.020,axis:'z'});
+    const discGroup=new THREE.Group();discGroup.position.set(0,67,0);palace.add(discGroup);
+    mesh(discGroup,new THREE.IcosahedronGeometry(14,1),glass(0xffc5cc,.51));
+    mesh(discGroup,new THREE.OctahedronGeometry(18,0),glass(0xffa98c,.21)).rotation.set(.32,.5,.7);
+    sphere(discGroup,3.6,new THREE.MeshBasicMaterial({color:0xffe6e4}),0,0,1);
+    rotating.push({part:discGroup,speed:.013,axis:'y'});
+    // Inner floating crystalline ribs and watch hands.
+    for(let i=0;i<13;i++){
+      const angle=i*Math.PI*2/13;const radius=18+random()*12;
+      const ob=mesh(palace,new THREE.OctahedronGeometry(4.6+random()*3,0),i%2?deepGlass:roseGlass,Math.cos(angle)*radius,51+random()*33,Math.sin(angle)*radius);
+      ob.scale.set(.35,2+random()*3,.5);ob.rotation.set(random(),random()*2,random());
+    }
+    const hands=new THREE.Group();hands.position.set(0,67,15);palace.add(hands);
+    cylinderBetween(hands,[0,0,0],[0,26,0],.45,.15,gold);cylinderBetween(hands,[0,0,0],[19,-10,0],.35,.18,gold);
+    sphere(hands,2.8,gold);rotating.push({part:hands,speed:.026,axis:'z'});
+
+    // Massive spires, obelisks, towers and flying buttresses around the clock face.
+    function spire(x,z,height,width,material){
+      const group=new THREE.Group();group.position.set(x,10,z);palace.add(group);
+      const pole=mesh(group,new THREE.CylinderGeometry(width*.3,width*.7,height*.65,6),material,0,height*.325,0);
+      const needle=mesh(group,new THREE.ConeGeometry(width*.72,height*.35,5),material,0,height*.825,0);needle.rotation.y=Math.PI/5;
+      torus(group,width*.75,.24,gold,0,height*.64,0).rotation.x=Math.PI/2;
+      sphere(group,width*.49,gold,0,height*.64,0);
+      return group;
+    }
+    const towers=[[-78,-5,104,2.6],[78,-5,117,2.6],[-96,2,68,1.6],[96,2,74,1.6],[-58,-31,93,2.2],[58,-31,102,2.2],[-22,-40,73,1.5],[22,-40,73,1.5],[-116,-17,45,1.2],[116,-17,50,1.2]];
+    for(let i=0;i<towers.length;i++)spire(...towers[i],i%2?roseGlass:amberGlass);
+    for(let x of [-73,73]){
+      for(let y of [25,43,67])cylinderBetween(palace,[x,10,-8],[x*.48,y,0],.48,.35,gold,8);
+      for(let s of [-1,1])cylinderBetween(palace,[x,30,-8],[x+s*9,65,-17],.38,.18,roseGlass,5);
+    }
+    for(let i=-3;i<=3;i++){
+      const x=i*24;const piece=mesh(palace,new THREE.OctahedronGeometry(7.5,0),i%2?amberGlass:roseGlass,x,15,-45);
+      piece.scale.set(.62,3+random()*1.6,.8);
+      if(i%2===0)cylinderBetween(palace,[x,11,-43],[x*.65,49,-24],.25,.19,gold,6);
+    }
+    // A central walkway lets the player approach and fly through the palace.
+    const walkway=mesh(palace,new THREE.BoxGeometry(17,1.05,103),metal,0,11,61);
+    const pathglass=mesh(palace,new THREE.BoxGeometry(15.6,.1,102),roseGlass,0,11.58,61);
+    for(let side of [-1,1]){
+      for(let i=0;i<10;i++){
+        const z=12+i*10;
+        const bar=mesh(palace,new THREE.CylinderGeometry(.26,.34,4.2,7),gold,side*8.4,13.8,z);bar.rotation.z=0;
+        cylinderBetween(palace,[side*8.4,16,z],[side*8.4,16,z+10],.16,.16,gold,5);
+      }
+    }
+    const interiorLight=new THREE.PointLight(0xffa8ac,95,220,1.2);interiorLight.position.set(0,70,-145);scene.add(interiorLight);
+    const underLight=new THREE.PointLight(0xe7a075,35,120);underLight.position.set(0,13,-155);scene.add(underLight);
+
+    // Manhattan: an original, stylized luminous blue humanoid with an atom emblem.
+    const manhattan=new THREE.Group();manhattan.position.set(31,30,-80);scene.add(manhattan);
+    const body=new THREE.Group();manhattan.add(body);body.scale.setScalar(2.0);
+    const blue=mat(0x62c5eb,{roughness:.23,metalness:.18,emissive:0x168fc7,emissiveIntensity:1.05});
+    const brighter=mat(0xa7eaff,{roughness:.2,emissive:0x2caef0,emissiveIntensity:1.8});
+    const deepblue=mat(0x318fca,{roughness:.3,emissive:0x166eb7,emissiveIntensity:.72});
+    // Anatomical silhouette from tapered geometric volumes; front faces the player (+z).
+    mesh(body,new THREE.CylinderGeometry(.82,1.11,2.6,14),blue,0,1.05,0);
+    mesh(body,new THREE.SphereGeometry(1.34,18,12),blue,0,2.16,0).scale.set(1.12,.62,.63);
+    mesh(body,new THREE.SphereGeometry(.97,16,12),blue,0,-.57,0).scale.set(1.0,.68,.71);
+    mesh(body,new THREE.CylinderGeometry(.4,.44,.57,12),blue,0,2.68,0);
+    sphere(body,.77,blue,0,3.48,0).scale.set(.91,1.13,.86);
+    // Ears, brow, nose and luminous eyes.
+    sphere(body,.19,blue,-.72,3.44,0);sphere(body,.19,blue,.72,3.44,0);
+    sphere(body,.12,brighter,-.28,3.52,.67);sphere(body,.12,brighter,.28,3.52,.67);
+    mesh(body,new THREE.ConeGeometry(.15,.37,8),blue,0,3.28,.74).rotation.x=Math.PI/2;
+    const forehead=torus(body,.22,.037,brighter,0,3.88,.69);
+    forehead.scale.y=.8;
+    // The simple atom-like forehead symbol.
+    for(let i=0;i<3;i++){const a=torus(body,.25,.019,brighter,0,3.88,.715);a.scale.y=.44;a.rotation.z=i*Math.PI/3}
+    for(let s of [-1,1]){
+      sphere(body,.53,blue,s*1.42,2.17,.02).scale.set(.82,.82,.83);
+      cylinderBetween(body,[s*1.42,2.05,0],[s*1.76,.50,.08],.38,.29,blue);
+      sphere(body,.32,deepblue,s*1.78,.48,.09);
+      cylinderBetween(body,[s*1.78,.48,.09],[s*1.68,-1.05,.35],.30,.20,blue);
+      sphere(body,.22,blue,s*1.66,-1.13,.4);
+      cylinderBetween(body,[s*.51,-.99,0],[s*.57,-2.75,.05],.46,.33,blue);
+      sphere(body,.36,deepblue,s*.57,-2.76,.06);
+      cylinderBetween(body,[s*.57,-2.7,.05],[s*.58,-4.54,.09],.34,.22,blue);
+      sphere(body,.25,blue,s*.58,-4.66,.31).scale.set(1.2,.7,1.85);
+    }
+    const glowCanvas=document.createElement('canvas');glowCanvas.width=128;glowCanvas.height=128;
+    const gctx=glowCanvas.getContext('2d'),grad=gctx.createRadialGradient(64,64,3,64,64,63);
+    grad.addColorStop(0,'rgba(67,225,255,.68)');grad.addColorStop(.21,'rgba(26,180,255,.28)');grad.addColorStop(.48,'rgba(10,133,255,.10)');grad.addColorStop(1,'rgba(7,105,255,0)');
+    gctx.fillStyle=grad;gctx.fillRect(0,0,128,128);
+    const aura= new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(glowCanvas),transparent:true,opacity:.83,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:true}));
+    aura.scale.set(44,51,1);aura.position.set(0,0,-2.8);manhattan.add(aura);
+    const blueLight=new THREE.PointLight(0x4fd9ff,80,95,1.4);blueLight.position.set(31,30,-80);scene.add(blueLight);
+    const particles=new THREE.Group();manhattan.add(particles);
+    for(let i=0;i<52;i++){
+      let a=random()*6.28,rad=5+random()*17;
+      const p=mesh(particles,new THREE.OctahedronGeometry(.10+random()*.26,0),new THREE.MeshBasicMaterial({color:i%4===0?0xffd9c6:0x65d4ff,transparent:true,opacity:.5+random()*.5}),Math.cos(a)*rad,(random()-.5)*31,Math.sin(a)*rad);
+      p.userData.bob=random()*5;p.userData.baseY=p.position.y;p.userData.speed=.3+random();
+    }
+
+    // Player / third-person character, a compact orange Martian explorer.
+    const player=new THREE.Group();scene.add(player);
+    const astronaut=new THREE.Group();player.add(astronaut);
+    const suit=mat(0xc9a392,{metalness:.22,roughness:.68}),suitDark=mat(0x6d5158,{roughness:.68}),suitMetal=mat(0xe1c9b5,{metalness:.42,roughness:.3});
+    const visor=mat(0x232c49,{metalness:.56,roughness:.15,emissive:0x101c38,emissiveIntensity:.7});
+    sphere(astronaut,.57,suitMetal,0,2.3,0).scale.set(1,1.02,.97);
+    sphere(astronaut,.45,visor,0,2.28,-.23).scale.set(1.1,.68,.82);
+    mesh(astronaut,new THREE.CylinderGeometry(.5,.42,1.04,10),suit,0,1.26,0);
+    mesh(astronaut,new THREE.BoxGeometry(.88,.9,.3),suitDark,0,1.31,.43);
+    mesh(astronaut,new THREE.BoxGeometry(.45,.24,.11),brighter,0,1.45,-.49);
+    const limbs=[];
+    for(let s of [-1,1]){
+      const arm=new THREE.Group();arm.position.set(s*.61,1.68,0);astronaut.add(arm);
+      mesh(arm,new THREE.CylinderGeometry(.19,.16,.83,8),suit,0,-.40,0);
+      sphere(arm,.19,suitDark,0,-.82,-.03);limbs.push({arm,s});
+      const leg=new THREE.Group();leg.position.set(s*.25,.78,0);astronaut.add(leg);
+      mesh(leg,new THREE.CylinderGeometry(.22,.16,.76,8),suit,0,-.36,0);
+      mesh(leg,new THREE.BoxGeometry(.38,.19,.61),suitDark,0,-.78,-.13);
+      limbs.push({leg,s});
+    }
+    // Game input: pointer lock is OPTIONAL. Keyboard remains active after ESC or lock rejection.
+    const state={yaw:0,pitch:.02,fly:false,firstPerson:false,velocity:new THREE.Vector3(),vertical:0,grounded:true,viewLocked:false,started:false,dragging:false,keys:{},lastSpace:-1000,lastSpaceUp:-1000,moving:false};
+    player.position.set(0,terrainHeight(0,95),95);
+    const intro=document.getElementById('intro'),start=document.getElementById('start'),notice=document.getElementById('controlNotice');
+    let toastTimeout;
+    const hudToast=(str)=>{const el=document.getElementById('toast');el.textContent=str;el.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('show'),1800)};
+    const setFly=(value)=>{state.fly=value;state.vertical=0;if(value){player.position.y=Math.max(player.position.y+1.7,terrainHeight(player.position.x,player.position.z)+2.7)}hudToast(value?'비행 모드 활성화 · SPACE 상승 / SHIFT 하강':'지상 이동 모드 활성화')};
+    function showFallback(){notice.classList.toggle('show',state.started&&!state.viewLocked)}
+    function setPointer(){
+      if(!state.started || document.pointerLockElement===canvas || !canvas.requestPointerLock)return;
+      try {
+        const result=canvas.requestPointerLock();
+        if(result?.catch)result.catch(()=>{showFallback();});
+      } catch(error){showFallback()}
+    }
+    start.addEventListener('click',()=>{
+      state.started=true;
+      intro.classList.add('hidden');
+      canvas.focus({preventScroll:true});
+      showFallback();
+      setPointer();
+    });
+    canvas.addEventListener('mousedown',(e)=>{if(state.started&&e.button===0&&!state.viewLocked){state.dragging=true;canvas.focus({preventScroll:true})}});
+    document.addEventListener('mouseup',()=>{state.dragging=false});
+    canvas.addEventListener('click',()=>{if(state.started&&!state.viewLocked)setPointer()});
+    document.addEventListener('pointerlockchange',()=>{
+      state.viewLocked=document.pointerLockElement===canvas;
+      state.dragging=false;
+      if(!state.viewLocked)state.keys={};
+      showFallback();
+    });
+    document.addEventListener('pointerlockerror',()=>{showFallback()});
+    document.addEventListener('mousemove',(e)=>{
+      if(!state.started||(!state.viewLocked&&!state.dragging))return;
+      state.yaw-=e.movementX*.0020;
+      state.pitch=THREE.MathUtils.clamp(state.pitch-e.movementY*.0018,-1.40,1.37);
+    });
+    const gameKeys=new Set(['KeyW','KeyA','KeyS','KeyD','Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','KeyR','KeyV','KeyF','KeyE']);
+    document.addEventListener('keydown',(e)=>{
+      if(!state.started||e.metaKey||e.altKey||e.ctrlKey||!gameKeys.has(e.code))return;
+      // Keep browser keys (and focus changes) out of the active game.
+      e.preventDefault();
+      if(e.code==='Space'&&!e.repeat){
+        const now=performance.now();
+        const doubleTap=now-state.lastSpaceUp<370&&state.lastSpaceUp>=state.lastSpace&&state.lastSpace>0;
+        if(doubleTap){setFly(!state.fly);state.lastSpace=-1000;state.lastSpaceUp=-1000;state.keys.Space=false}
+        else{state.lastSpace=now;state.keys.Space=true;if(!state.fly&&state.grounded){state.vertical=9.8;state.grounded=false}}
+      }else{state.keys[e.code]=true}
+      if(!e.repeat&&e.code==='KeyV'){state.firstPerson=!state.firstPerson;astronaut.visible=!state.firstPerson;hudToast(state.firstPerson?'1인칭 시점':'3인칭 시점')}
+      if(!e.repeat&&e.code==='KeyF')setFly(!state.fly);
+      if(!e.repeat&&e.code==='KeyE'&&player.position.distanceTo(manhattan.position)<53)hudToast('닥터 맨하튼 · 시간이 흐르지 않는 곳');
+    });
+    document.addEventListener('keyup',(e)=>{
+      if(!state.started)return;
+      if(gameKeys.has(e.code)&&!e.metaKey&&!e.altKey&&!e.ctrlKey)e.preventDefault();
+      if(e.code==='Space')state.lastSpaceUp=performance.now();
+      state.keys[e.code]=false;
+    });
+    window.addEventListener('blur',()=>{state.keys={};state.dragging=false});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)state.keys={}});
+    canvas.addEventListener('webglcontextlost',(e)=>{e.preventDefault();window.__marsError('그래픽 장치 연결이 끊어졌습니다. 브라우저의 하드웨어 가속을 확인해 주세요.')});
+    canvas.addEventListener('webglcontextrestored',()=>{document.getElementById('error').style.display='none'});
+    const forward=new THREE.Vector3(),right=new THREE.Vector3(),move=new THREE.Vector3(),view=new THREE.Vector3(),camPos=new THREE.Vector3(),lookAt=new THREE.Vector3();
+    let tick=0,prevMode='';
+    function update(delta,time){
+      const dt=Math.min(delta,.05);tick+=dt;
+      for(const item of rotating)item.part.rotation[item.axis]+=item.speed*dt;
+      manhattan.position.y=30+Math.sin(time*.82)*1.2;body.rotation.z=Math.sin(time*.6)*.025;
+      aura.material.opacity=.74+Math.sin(time*1.3)*.08;blueLight.position.y=manhattan.position.y;
+      particles.children.forEach(p=>{p.position.y=p.userData.baseY+Math.sin(time*p.userData.speed+p.userData.bob)*.9;p.rotation.y+=dt*.2});
+      const keys=state.keys;
+      forward.set(Math.sin(state.yaw),0,-Math.cos(state.yaw));right.set(Math.cos(state.yaw),0,Math.sin(state.yaw));
+      move.set(0,0,0);
+      if(keys.KeyW||keys.ArrowUp)move.add(forward);
+      if(keys.KeyS||keys.ArrowDown)move.sub(forward);
+      if(keys.KeyD||keys.ArrowRight)move.add(right);
+      if(keys.KeyA||keys.ArrowLeft)move.sub(right);
+      if(move.lengthSq()>0)move.normalize();state.moving=move.lengthSq()>0;
+      const fast=keys.KeyR||(!state.fly&&(keys.ShiftLeft||keys.ShiftRight));const speed=(state.fly?23:12)*(fast?2.55:1);
+      const alpha=1-Math.exp(-dt*(state.fly?6:10));
+      state.velocity.x=THREE.MathUtils.lerp(state.velocity.x,move.x*speed,alpha);
+      state.velocity.z=THREE.MathUtils.lerp(state.velocity.z,move.z*speed,alpha);
+      player.position.x+=state.velocity.x*dt;player.position.z+=state.velocity.z*dt;
+      const ground=terrainHeight(player.position.x,player.position.z);
+      if(state.fly){const vy=(keys.Space?1:0)-(keys.ShiftLeft||keys.ShiftRight?1:0);state.vertical=THREE.MathUtils.lerp(state.vertical,vy*speed,alpha);player.position.y+=state.vertical*dt;player.position.y=Math.max(ground+.2,Math.min(480,player.position.y));state.grounded=false}
+      else{state.vertical-=23*dt;player.position.y+=state.vertical*dt;if(player.position.y<=ground){player.position.y=ground;state.vertical=0;state.grounded=true}}
+      player.position.x=THREE.MathUtils.clamp(player.position.x,-1000,1000);player.position.z=THREE.MathUtils.clamp(player.position.z,-1000,1000);
+      astronaut.rotation.y=THREE.MathUtils.lerp(astronaut.rotation.y,state.yaw,1-Math.exp(-dt*8));
+      astronaut.rotation.x=THREE.MathUtils.lerp(astronaut.rotation.x,state.fly?-.16:0,dt*5);
+      if(state.moving&&!state.fly){astronaut.position.y=Math.abs(Math.sin(tick*speed*.9))*.07;limbs.forEach(o=>{if(o.arm)o.arm.rotation.x=Math.sin(tick*speed*.9)*.34*o.s;else o.leg.rotation.x=-Math.sin(tick*speed*.9)*.4*o.s})}
+      else{astronaut.position.y=0;limbs.forEach(o=>{if(o.arm)o.arm.rotation.x=THREE.MathUtils.lerp(o.arm.rotation.x,0,dt*7);else o.leg.rotation.x=THREE.MathUtils.lerp(o.leg.rotation.x,0,dt*7)})}
+      view.set(Math.sin(state.yaw)*Math.cos(state.pitch),Math.sin(state.pitch),-Math.cos(state.yaw)*Math.cos(state.pitch));
+      lookAt.set(player.position.x,player.position.y+2.05,player.position.z);
+      if(state.firstPerson){camPos.copy(lookAt).add(new THREE.Vector3(0,.3,0));camera.position.lerp(camPos,1-Math.exp(-dt*16));camera.lookAt(camPos.clone().add(view))}
+      else{camPos.copy(lookAt).addScaledVector(view,-9.5);camPos.y+=2.1;camPos.y=Math.max(terrainHeight(camPos.x,camPos.z)+1.25,camPos.y);camera.position.lerp(camPos,1-Math.exp(-dt*10));camera.lookAt(lookAt.clone().addScaledVector(view,26))}
+      document.getElementById('cameraMode').textContent=state.firstPerson?'FIRST PERSON':'THIRD PERSON';
+      document.getElementById('travelMode').textContent=state.fly?'CREATIVE FLIGHT':'WALKING';
+      document.getElementById('altitude').textContent=Math.max(0,player.position.y-ground).toFixed(1).padStart(5,'0')+' M';
+      document.getElementById('distance').textContent=Math.round(Math.hypot(player.position.x,player.position.z+155))+' M';
+      document.getElementById('position').textContent=[player.position.x,player.position.y,player.position.z].map(n=>n.toFixed(1)).join('  /  ');
+      const bearing=(Math.round(THREE.MathUtils.euclideanModulo(-state.yaw*180/Math.PI,360)));
+      const direction=['N','NE','E','SE','S','SW','W','NW'][Math.round(bearing/45)%8];
+      document.getElementById('bearing').textContent=direction+' · '+String(bearing).padStart(3,'0')+'°';
+      document.getElementById('interactionHint').classList.toggle('visible',player.position.distanceTo(manhattan.position)<53&&state.viewLocked);
+    }
+    const frame=()=>{requestAnimationFrame(frame);const dt=clock.getDelta();update(dt,clock.elapsedTime);renderer.render(scene,camera)};
+    const onResize=()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.35))};
+    window.addEventListener('resize',onResize);
+    // Aim at the castle before the user takes control.
+    camera.position.set(10,10,106);camera.lookAt(0,69,-155);
+    window.__marsReady=true;
+    frame();
+  </script>
+</body>
+</html>
