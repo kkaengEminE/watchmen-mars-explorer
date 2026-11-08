@@ -1,0 +1,36 @@
+/* Shared mobile controls — touch devices only; inserted by mobile-controls.js */
+.mars-mobile {
+  position:fixed; inset:0; z-index:9; pointer-events:none; display:none;
+  color:#fff6e9; font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;
+  touch-action:none; -webkit-user-select:none; user-select:none;
+}
+.mars-mobile.active{display:block}
+.mars-mobile *{box-sizing:border-box}
+.mars-joy-zone{position:absolute;bottom:calc(25px + env(safe-area-inset-bottom));left:calc(20px + env(safe-area-inset-left));width:148px;height:148px;pointer-events:auto;touch-action:none}
+.mars-joy-ring{position:absolute;inset:0;border:2px solid #ffffff65;border-radius:50%;background:radial-gradient(circle,#ffffff1c,#ffffff08 68%);box-shadow:0 7px 26px #090e1b75,inset 0 0 20px #ffffff08}
+.mars-joy-ring::before,.mars-joy-ring::after{content:"";position:absolute;background:#ffffff42;border-radius:3px}
+.mars-joy-ring::before{width:2px;height:62%;left:calc(50% - 1px);top:19%}
+.mars-joy-ring::after{height:2px;width:62%;top:calc(50% - 1px);left:19%}
+.mars-joy-knob{position:absolute;left:50%;top:50%;width:65px;height:65px;border-radius:50%;transform:translate(-50%,-50%);background:radial-gradient(circle at 40% 30%,#ffffff80,#9cbdc760);border:2px solid #ffffffa5;box-shadow:0 5px 16px #0006;pointer-events:none}
+.mars-actions{position:absolute;right:calc(15px + env(safe-area-inset-right));bottom:calc(24px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(2,64px);grid-template-rows:repeat(2,64px);gap:12px;pointer-events:auto}
+.mars-action{border:1px solid #ffffff83;outline:0;border-radius:18px;background:#152836bb;color:white;font:700 12px system-ui,sans-serif;touch-action:none;box-shadow:0 6px 18px #0006;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+.mars-action:active,.mars-action.held{background:#bfeefa70;transform:scale(.97)}
+.mars-action[data-act="fly"]{background:#3c677cbd;border-color:#b4e4f0}
+.mars-action[data-act="fly"][aria-pressed="true"]{background:#398f9fc9;border-color:#c3faff}
+.mars-action:disabled{opacity:.3}
+.mars-action strong{display:block;font-size:19px;line-height:1.1;margin-bottom:3px}
+.mars-mobile-hint{position:absolute;bottom:calc(7px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);padding:5px 10px;border-radius:20px;background:#0b1a24a8;color:#f7f0dfce;font-size:10px;white-space:nowrap;pointer-events:none}
+@media(max-width:600px){
+ .mars-joy-zone{width:124px;height:124px;left:calc(10px + env(safe-area-inset-left));bottom:calc(20px + env(safe-area-inset-bottom))}
+ .mars-joy-knob{width:57px;height:57px}
+ .mars-actions{grid-template-columns:repeat(2,56px);grid-template-rows:repeat(2,56px);gap:8px;right:calc(9px + env(safe-area-inset-right));bottom:calc(20px + env(safe-area-inset-bottom))}
+ .mars-action{border-radius:15px;font-size:11px}
+ .mars-action strong{font-size:17px}
+ .mars-mobile-hint{bottom:calc(3px + env(safe-area-inset-bottom));font-size:9px}
+}
+@media(max-height:440px) and (orientation:landscape){
+ .mars-joy-zone{width:112px;height:112px;bottom:calc(8px + env(safe-area-inset-bottom))}
+ .mars-joy-knob{width:50px;height:50px}
+ .mars-actions{grid-template-columns:repeat(2,51px);grid-template-rows:repeat(2,51px);gap:7px;bottom:calc(8px + env(safe-area-inset-bottom))}
+ .mars-mobile-hint{display:none}
+}
