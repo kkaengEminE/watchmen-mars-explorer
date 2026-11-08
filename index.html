@@ -57,6 +57,7 @@
     .focus-outline{position:absolute;inset:14px;border:1px solid rgba(244,199,183,.10);pointer-events:none;border-radius:2px}
     @media(max-width:740px){#intro{padding:30px 24px;align-items:center;background:rgba(13,9,20,.84)}.intro-meta{margin-bottom:22px}h1{font-size:79px}.controls{grid-template-columns:1fr 1fr;gap:10px}.lead{font-size:12px;margin-bottom:22px}.control-label{font-size:10px}.begin{min-width:240px}.hud-top{top:20px;left:19px}.rightdata{top:20px;right:17px;font-size:9px}.bottom-left{left:20px;bottom:19px}.bottom-right{right:18px;bottom:18px}.bottom-right span{display:none}.compass{top:85px}}
   </style>
+  <link rel="stylesheet" href="./mobile-controls.css" />
 </head>
 <body>
   <canvas id="world" tabindex="0" aria-label="화성 탐험 3D 월드"></canvas>
@@ -88,7 +89,7 @@
         <div class="control"><span class="key">SHIFT / R</span><span class="control-label">빠르게 이동 (지상) / R 부스트</span></div>
       </div>
       <button class="begin" id="start">탐험 시작하기 &nbsp; ↗</button>
-      <div class="disclaimer">ESC 키로 마우스를 해제할 수 있습니다. 마우스 잠금 없이도 WASD 이동과 드래그 시점 조작이 가능합니다. 데스크톱 키보드·마우스 환경 권장.<br>WATCHMEN 세계관에서 영감을 받은 비공식 팬 제작 3D 콘셉트입니다.</div>
+      <div class="disclaimer">ESC 키로 마우스를 해제할 수 있습니다. 마우스 잠금 없이도 WASD 이동과 드래그 시점 조작이 가능합니다. 모바일에서는 왼쪽 조이스틱과 오른쪽 터치 버튼으로 이동·비행할 수 있습니다.<br>WATCHMEN 세계관에서 영감을 받은 비공식 팬 제작 3D 콘셉트입니다.</div>
     </div>
   </div>
   <div id="error"></div>
@@ -106,6 +107,7 @@
     window.addEventListener('unhandledrejection', (event) => window.__marsError(String(event.reason || '라이브러리 로딩 오류')));
     setTimeout(() => { if (!window.__marsReady) window.__marsError('3D 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.'); }, 12000);
   </script>
+  <script src="./mobile-controls.js"></script>
   <script type="module">
     let THREE;
     try {
@@ -347,9 +349,21 @@
     let toastTimeout;
     const hudToast=(str)=>{const el=document.getElementById('toast');el.textContent=str;el.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('show'),1800)};
     const setFly=(value)=>{state.fly=value;state.vertical=0;if(value){player.position.y=Math.max(player.position.y+1.7,terrainHeight(player.position.x,player.position.z)+2.7)}hudToast(value?'비행 모드 활성화 · SPACE 상승 / SHIFT 하강':'지상 이동 모드 활성화')};
-    function showFallback(){notice.classList.toggle('show',state.started&&!state.viewLocked)}
+
+    const mobileController=window.installMarsMobileControls?.({
+      canvas,state,toggleFly:()=>setFly(!state.fly),
+      toggleView:()=>{
+        state.firstPerson=!state.firstPerson;
+        astronaut.visible=!state.firstPerson;
+        hudToast(state.firstPerson?'1인칭 시점':'3인칭 시점');
+      },
+      jump:()=>{if(state.grounded){state.vertical=9.8;state.grounded=false}}
+    })||{enabled:false,start(){},sync(){}};
+    window.__mobileController=mobileController;
+
+    function showFallback(){notice.classList.toggle('show',state.started&&!state.viewLocked&&!window.__mobileController?.enabled)}
     function setPointer(){
-      if(!state.started || document.pointerLockElement===canvas || !canvas.requestPointerLock)return;
+      if(window.__mobileController?.enabled || !state.started || document.pointerLockElement===canvas || !canvas.requestPointerLock)return;
       try {
         const result=canvas.requestPointerLock();
         if(result?.catch)result.catch(()=>{showFallback();});
@@ -361,6 +375,7 @@
       canvas.focus({preventScroll:true});
       showFallback();
       setPointer();
+      mobileController.start();
     });
     canvas.addEventListener('mousedown',(e)=>{if(state.started&&e.button===0&&!state.viewLocked){state.dragging=true;canvas.focus({preventScroll:true})}});
     document.addEventListener('mouseup',()=>{state.dragging=false});
@@ -417,13 +432,15 @@
       if(keys.KeyS||keys.ArrowDown)move.sub(forward);
       if(keys.KeyD||keys.ArrowRight)move.add(right);
       if(keys.KeyA||keys.ArrowLeft)move.sub(right);
-      if(move.lengthSq()>0)move.normalize();state.moving=move.lengthSq()>0;
-      const fast=keys.KeyR||(!state.fly&&(keys.ShiftLeft||keys.ShiftRight));const speed=(state.fly?23:12)*(fast?2.55:1);
+      if(state.mobileAxis){move.addScaledVector(forward,state.mobileAxis.y);move.addScaledVector(right,state.mobileAxis.x)}
+      if(move.lengthSq()>1)move.normalize();state.moving=move.lengthSq()>0;
+      const fast=state.mobileSprint||keys.KeyR||(!state.fly&&(keys.ShiftLeft||keys.ShiftRight));const speed=(state.fly?23:12)*(fast?2.55:1);
       const alpha=1-Math.exp(-dt*(state.fly?6:10));
       state.velocity.x=THREE.MathUtils.lerp(state.velocity.x,move.x*speed,alpha);
       state.velocity.z=THREE.MathUtils.lerp(state.velocity.z,move.z*speed,alpha);
       player.position.x+=state.velocity.x*dt;player.position.z+=state.velocity.z*dt;
       const ground=terrainHeight(player.position.x,player.position.z);
+      mobileController.sync();
       if(state.fly){const vy=(keys.Space?1:0)-(keys.ShiftLeft||keys.ShiftRight?1:0);state.vertical=THREE.MathUtils.lerp(state.vertical,vy*speed,alpha);player.position.y+=state.vertical*dt;player.position.y=Math.max(ground+.2,Math.min(480,player.position.y));state.grounded=false}
       else{state.vertical-=23*dt;player.position.y+=state.vertical*dt;if(player.position.y<=ground){player.position.y=ground;state.vertical=0;state.grounded=true}}
       player.position.x=THREE.MathUtils.clamp(player.position.x,-1000,1000);player.position.z=THREE.MathUtils.clamp(player.position.z,-1000,1000);
